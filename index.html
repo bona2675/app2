@@ -1,19 +1,116 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
+  <meta charset="UTF-8">
+  <title>Teleprompter</title>
+
   <link rel="manifest" href="manifest.json">
   <meta name="theme-color" content="#000000">
-  <meta charset="UTF-8">
-  <title>Mi App</title>
-</head>
-<body>
-  <h1>HOLA HOLA!!!</h1>
-  <p>Mi primera PWA</p>
-  <p>Y esta ya tiene ICONO</p>
-  <script>
-    if ("serviceWorker" in navigator) {
-      navigator.serviceWorker.register("service-worker.js");
+
+  <style>
+    body {
+      margin: 0;
+      font-family: sans-serif;
+      background: #111;
+      color: white;
     }
-  </script>
+
+    header {
+      padding: 10px;
+      background: #000;
+      display: flex;
+      gap: 10px;
+    }
+
+    button {
+      padding: 10px;
+      border: none;
+      background: #333;
+      color: white;
+      border-radius: 5px;
+    }
+
+    textarea {
+      width: 100%;
+      height: calc(100vh - 60px);
+      padding: 15px;
+      font-size: 18px;
+      border: none;
+      outline: none;
+      resize: none;
+      background: #111;
+      color: white;
+    }
+  </style>
+</head>
+
+<body>
+
+<header>
+  <button onclick="importar()">Importar</button>
+  <button onclick="exportar()">Exportar</button>
+  <button onclick="limpiar()">Nuevo</button>
+</header>
+
+<textarea id="editor" placeholder="Escribe o pega tu texto aquí..."></textarea>
+
+<input type="file" id="fileInput" accept=".txt" style="display:none">
+
+<script>
+const editor = document.getElementById("editor");
+
+// 🔁 Cargar texto guardado
+const textoGuardado = localStorage.getItem("texto");
+if (textoGuardado) {
+  editor.value = textoGuardado;
+}
+
+// 💾 Guardado automático
+editor.addEventListener("input", () => {
+  localStorage.setItem("texto", editor.value);
+});
+
+// 📂 Importar archivo
+function importar() {
+  document.getElementById("fileInput").click();
+}
+
+document.getElementById("fileInput").addEventListener("change", function(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    editor.value = e.target.result;
+    localStorage.setItem("texto", editor.value);
+  };
+  reader.readAsText(file);
+});
+
+// 💾 Exportar archivo
+function exportar() {
+  const blob = new Blob([editor.value], { type: "text/plain" });
+  const url = URL.createObjectURL(blob);
+
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "mi-texto.txt";
+  a.click();
+}
+
+// 🧹 Limpiar
+function limpiar() {
+  if (confirm("¿Borrar texto actual?")) {
+    editor.value = "";
+    localStorage.removeItem("texto");
+  }
+}
+
+// Service Worker
+if ("serviceWorker" in navigator) {
+  navigator.serviceWorker.register("service-worker.js");
+}
+</script>
+
 </body>
 </html>
