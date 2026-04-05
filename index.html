@@ -11,40 +11,57 @@
   <meta name="theme-color" content="#000000">
 
   <style>
-    body {
-      margin: 0;
-      font-family: sans-serif;
-      background: #111;
-      color: white;
-    }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+    background: #111;
+    color: white;
+  }
 
-    header {
-      padding: 10px;
-      background: #000;
-      display: flex;
-      gap: 10px;
-    }
+  header {
+    position: sticky;
+    top: 0;
+    display: flex;
+    gap: 10px;
+    padding: 12px;
+    background: #000;
+    padding-top: calc(12px + env(safe-area-inset-top));
+  }
 
-    button {
-      padding: 10px;
-      border: none;
-      background: #333;
-      color: white;
-      border-radius: 5px;
-    }
+  button {
+    flex: 1;
+    padding: 14px;
+    font-size: 16px;
+    border: none;
+    background: #333;
+    color: white;
+    border-radius: 10px;
+    min-height: 44px; /* estándar Apple */
+  }
 
-    textarea {
-      width: 100%;
-      height: calc(100vh - 60px);
-      padding: 15px;
-      font-size: 18px;
-      border: none;
-      outline: none;
-      resize: none;
-      background: #111;
-      color: white;
-    }
-  </style>
+  button:active {
+    background: #555;
+  }
+
+  textarea {
+    width: 100%;
+    height: calc(100vh - 80px);
+    padding: 16px;
+    font-size: 20px;
+    line-height: 1.5;
+    border: none;
+    outline: none;
+    resize: none;
+    background: #111;
+    color: white;
+    box-sizing: border-box;
+  }
+
+  /* Mejora para iPhone (notch / barra inferior) */
+  textarea {
+    padding-bottom: calc(16px + env(safe-area-inset-bottom));
+  }
+</style>
 </head>
 
 <body>
