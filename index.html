@@ -67,6 +67,8 @@
 <body>
 
 <header>
+  <button onclick="presentar()">Presentar</button>
+  
   <button onclick="importar()">Importar</button>
   <button onclick="exportar()">Exportar</button>
   <button onclick="limpiar()">Nuevo</button>
@@ -74,6 +76,26 @@
 
 <textarea id="editor" placeholder="Escribe o pega tu texto aquí..."></textarea>
 
+<div id="presenterView" style="display:none; position:fixed; inset:0; background:black; color:white; overflow:hidden;">
+
+  <div id="textContainer" style="
+    position:absolute;
+    width:100%;
+    text-align:center;
+    font-size:32px;
+    line-height:1.6;
+    padding:40px 20px;
+    box-sizing:border-box;
+  "></div>
+
+  <div style="position:fixed; bottom:20px; left:0; right:0; display:flex; gap:10px; padding:10px;">
+    <input id="minutos" type="number" placeholder="min" style="flex:1; padding:10px; font-size:16px;">
+    <button onclick="togglePlay()">▶️</button>
+    <button onclick="salir()">❌</button>
+  </div>
+
+</div>
+  
 <input type="file" id="fileInput" accept=".txt" style="display:none">
 
 <script>
@@ -132,5 +154,89 @@ if ("serviceWorker" in navigator) {
 }
 </script>
 
+<script>
+let running = false;
+let position = 0;
+let speed = 0;
+let lastTime = 0;
+let totalHeight = 0;
+
+const presenterView = document.getElementById("presenterView");
+const textContainer = document.getElementById("textContainer");
+
+function presentar() {
+  const texto = editor.value;
+  if (!texto) return alert("No hay texto");
+
+  textContainer.innerText = texto;
+
+  presenterView.style.display = "block";
+  position = 0;
+  running = false;
+
+  requestAnimationFrame(loop);
+}
+
+function salir() {
+  presenterView.style.display = "none";
+  running = false;
+}
+
+function togglePlay() {
+  const minutos = parseFloat(document.getElementById("minutos").value);
+  if (!minutos) return alert("Define minutos");
+
+  const segundos = minutos * 60;
+
+  totalHeight = textContainer.offsetHeight - window.innerHeight;
+
+  speed = totalHeight / segundos;
+
+  running = !running;
+}
+
+function loop(timestamp) {
+  if (!lastTime) lastTime = timestamp;
+  const delta = (timestamp - lastTime) / 1000;
+  lastTime = timestamp;
+
+  if (running) {
+    position += speed * delta;
+    if (position > totalHeight) position = totalHeight;
+  }
+
+  textContainer.style.transform = `translateY(-${position}px)`;
+
+  requestAnimationFrame(loop);
+}
+
+//// 👆 Tap para pausar / continuar
+presenterView.addEventListener("click", (e) => {
+  if (e.target.tagName === "BUTTON" || e.target.tagName === "INPUT") return;
+  running = !running;
+});
+
+//// ✋ Arrastre manual
+let startY = 0;
+let startPos = 0;
+
+presenterView.addEventListener("touchstart", (e) => {
+  running = false;
+  startY = e.touches[0].clientY;
+  startPos = position;
+});
+
+presenterView.addEventListener("touchmove", (e) => {
+  const currentY = e.touches[0].clientY;
+  const delta = startY - currentY;
+
+  position = startPos + delta;
+
+  if (position < 0) position = 0;
+  if (position > totalHeight) position = totalHeight;
+});
+</script>
+
+  
 </body>
 </html>
