@@ -1,81 +1,88 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-  
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-  
   <meta charset="UTF-8">
   <title>Teleprompter</title>
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 
   <link rel="manifest" href="manifest.json">
   <meta name="theme-color" content="#000000">
 
   <style>
-  body {
-    margin: 0;
-    font-family: -apple-system, BlinkMacSystemFont, sans-serif;
-    background: #111;
-    color: white;
-  }
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+      background: #111;
+      color: white;
+    }
 
-  header {
-    position: sticky;
-    top: 0;
-    display: flex;
-    gap: 10px;
-    padding: 12px;
-    background: #000;
-    padding-top: calc(12px + env(safe-area-inset-top));
-  }
+    header {
+      position: sticky;
+      top: 0;
+      display: flex;
+      gap: 8px;
+      padding: 10px;
+      background: #000;
+      padding-top: calc(10px + env(safe-area-inset-top));
+      align-items: center;
+    }
 
-  button {
-    flex: 1;
-    padding: 14px;
-    font-size: 16px;
-    border: none;
-    background: #333;
-    color: white;
-    border-radius: 10px;
-    min-height: 44px; /* estándar Apple */
-  }
+    button {
+      padding: 12px;
+      font-size: 14px;
+      border: none;
+      background: #333;
+      color: white;
+      border-radius: 8px;
+      min-height: 44px;
+    }
 
-  button:active {
-    background: #555;
-  }
+    button:active {
+      background: #555;
+    }
 
-  textarea {
-    width: 100%;
-    height: calc(100vh - 80px);
-    padding: 16px;
-    font-size: 20px;
-    line-height: 1.5;
-    border: none;
-    outline: none;
-    resize: none;
-    background: #111;
-    color: white;
-    box-sizing: border-box;
-  }
+    #fileName {
+      flex: 1;
+      font-size: 13px;
+      opacity: 0.7;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
 
-  /* Mejora para iPhone (notch / barra inferior) */
-  textarea {
-    padding-bottom: calc(16px + env(safe-area-inset-bottom));
-  }
-</style>
+    textarea {
+      width: 100%;
+      height: calc(100vh - 70px);
+      padding: 16px;
+      font-size: 20px;
+      line-height: 1.5;
+      border: none;
+      outline: none;
+      resize: none;
+      background: #111;
+      color: white;
+      box-sizing: border-box;
+      padding-bottom: calc(16px + env(safe-area-inset-bottom));
+    }
+  </style>
 </head>
 
 <body>
 
 <header>
-  <button onclick="presentar()">Presentar</button>
-  
-  <button onclick="importar()">Importar</button>
-  <button onclick="exportar()">Exportar</button>
-  <button onclick="limpiar()">Nuevo</button>
+  <button onclick="importar()">📂</button>
+  <button onclick="exportar()">💾</button>
+  <button onclick="limpiar()">🧹</button>
+  <button onclick="presentar()">🎬</button>
+  <div id="fileName"></div>
 </header>
 
 <textarea id="editor" placeholder="Escribe o pega tu texto aquí..."></textarea>
 
+<input type="file" id="fileInput" accept=".txt" style="display:none">
+
+<!-- 🎬 MODO PRESENTADOR -->
 <div id="presenterView" style="display:none; position:fixed; inset:0; background:black; color:white; overflow:hidden;">
 
   <div id="textContainer" style="
@@ -95,25 +102,45 @@
   </div>
 
 </div>
-  
-<input type="file" id="fileInput" accept=".txt" style="display:none">
 
 <script>
- let filename = "untitled.txt";
-  const editor = document.getElementById("editor");
+// =======================
+// 📄 ESTADO DEL DOCUMENTO
+// =======================
+let filename = "untitled.txt";
 
-// 🔁 Cargar texto guardado
-const textoGuardado = localStorage.getItem("texto");
-if (textoGuardado) {
-  editor.value = textoGuardado;
+const editor = document.getElementById("editor");
+
+// Cargar desde localStorage
+const data = localStorage.getItem("doc");
+
+if (data) {
+  const parsed = JSON.parse(data);
+  editor.value = parsed.texto || "";
+  filename = parsed.filename || "untitled.txt";
 }
 
-// 💾 Guardado automático
-editor.addEventListener("input", () => {
-  localStorage.setItem("texto", editor.value);
-});
+actualizarNombre();
 
-// 📂 Importar archivo
+// Guardado automático
+function guardar() {
+  const data = {
+    texto: editor.value,
+    filename: filename
+  };
+  localStorage.setItem("doc", JSON.stringify(data));
+}
+
+editor.addEventListener("input", guardar);
+
+// Mostrar nombre
+function actualizarNombre() {
+  document.getElementById("fileName").innerText = filename;
+}
+
+// =======================
+// 📂 IMPORTAR
+// =======================
 function importar() {
   document.getElementById("fileInput").click();
 }
@@ -122,40 +149,45 @@ document.getElementById("fileInput").addEventListener("change", function(e) {
   const file = e.target.files[0];
   if (!file) return;
 
+  filename = file.name;
+
   const reader = new FileReader();
   reader.onload = function(e) {
     editor.value = e.target.result;
-    localStorage.setItem("texto", editor.value);
+    guardar();
+    actualizarNombre();
   };
   reader.readAsText(file);
 });
 
-// 💾 Exportar archivo
+// =======================
+// 💾 EXPORTAR
+// =======================
 function exportar() {
   const blob = new Blob([editor.value], { type: "text/plain" });
   const url = URL.createObjectURL(blob);
 
   const a = document.createElement("a");
   a.href = url;
-  a.download = "mi-texto.txt";
+  a.download = filename;
   a.click();
 }
 
-// 🧹 Limpiar
+// =======================
+// 🧹 NUEVO
+// =======================
 function limpiar() {
   if (confirm("¿Borrar texto actual?")) {
     editor.value = "";
-    localStorage.removeItem("texto");
+    filename = "untitled.txt";
+    guardar();
+    actualizarNombre();
   }
 }
 
-// Service Worker
-if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.register("service-worker.js");
-}
-</script>
-
-<script>
+// =======================
+// 🎬 TELEPROMPTER
+// =======================
 let running = false;
 let position = 0;
 let speed = 0;
@@ -166,14 +198,15 @@ const presenterView = document.getElementById("presenterView");
 const textContainer = document.getElementById("textContainer");
 
 function presentar() {
-  const texto = editor.value;
-  if (!texto) return alert("No hay texto");
+  if (!editor.value) return alert("No hay texto");
 
-  textContainer.innerText = texto;
+  textContainer.innerText = editor.value;
 
   presenterView.style.display = "block";
+
   position = 0;
   running = false;
+  lastTime = 0;
 
   requestAnimationFrame(loop);
 }
@@ -198,6 +231,7 @@ function togglePlay() {
 
 function loop(timestamp) {
   if (!lastTime) lastTime = timestamp;
+
   const delta = (timestamp - lastTime) / 1000;
   lastTime = timestamp;
 
@@ -211,13 +245,13 @@ function loop(timestamp) {
   requestAnimationFrame(loop);
 }
 
-//// 👆 Tap para pausar / continuar
+// Tap para pausar
 presenterView.addEventListener("click", (e) => {
   if (e.target.tagName === "BUTTON" || e.target.tagName === "INPUT") return;
   running = !running;
 });
 
-//// ✋ Arrastre manual
+// Drag táctil
 let startY = 0;
 let startPos = 0;
 
@@ -236,8 +270,14 @@ presenterView.addEventListener("touchmove", (e) => {
   if (position < 0) position = 0;
   if (position > totalHeight) position = totalHeight;
 });
+
+// =======================
+// ⚙️ SERVICE WORKER
+// =======================
+if ("serviceWorker" in navigator) {
+  navigator.serviceWorker.register("service-worker.js");
+}
 </script>
 
-  
 </body>
 </html>
