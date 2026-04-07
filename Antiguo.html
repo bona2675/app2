@@ -99,7 +99,8 @@
 <input type="file" id="fileInput" accept=".txt" style="display:none">
 
 <script>
-const editor = document.getElementById("editor");
+ let filename = "untitled.txt";
+  const editor = document.getElementById("editor");
 
 // 🔁 Cargar texto guardado
 const textoGuardado = localStorage.getItem("texto");
