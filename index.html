@@ -63,10 +63,14 @@ button {
 #textContainer {
   position: absolute;
   width: 100%;
+  box-sizing: border-box; /* 🔥 ESTA ES LA CLAVE */
   text-align: center;
   font-size: 32px;
   line-height: 1.6;
   padding: 40px 20px;
+
+  overflow-wrap: break-word;
+  word-break: break-word;
 }
 </style>
 </head>
