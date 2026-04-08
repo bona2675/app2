@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Teleprompter Pro</title>
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#000000">
+
+<style>
+body {
+  margin: 0;
+  font-family: -apple-system, sans-serif;
+  background: #111;
+  color: white;
+}
+
+/* HEADER */
+header {
+  position: sticky;
+  top: 0;
+  display: flex;
+  gap: 6px;
+  padding: 10px;
+  background: #000;
+  flex-wrap: wrap;
+}
+
+button {
+  padding: 10px;
+  border: none;
+  border-radius: 6px;
+  background: #333;
+  color: white;
+  font-size: 14px;
+}
+
+#fileName {
+  flex: 1;
+  font-size: 12px;
+  opacity: 0.7;
+}
+
+/* EDITOR */
+#editor {
+  min-height: calc(100vh - 120px);
+  padding: 16px;
+  font-size: 20px;
+  line-height: 1.6;
+  outline: none;
+}
+
+/* PRESENTADOR */
+#presenterView {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: black;
+  color: white;
+  overflow: hidden;
+}
+
+#textContainer {
+  position: absolute;
+  width: 100%;
+  box-sizing: border-box; /* 🔥 ESTA ES LA CLAVE */
+  text-align: center;
+  font-size: 32px;
+  line-height: 1.6;
+  padding: 40px 20px;
+
+  overflow-wrap: break-word;
+  word-break: break-word;
+}
+</style>
+</head>
+
+<body>
+
+<header>
+  <!-- ARCHIVO -->
+  <button onclick="importar()">📂</button>
+  <button onclick="exportar()">💾</button>
+  <button onclick="limpiar()">🧹</button>
+
+  <!-- FORMATO -->
+  <button onclick="format('bold')">B</button>
+  <button onclick="format('underline')">U</button>
+  <button onclick="color('red')">🔴</button>
+  <button onclick="color('yellow')">🟡</button>
+  <button onclick="color('cyan')">🔵</button>
+
+  <!-- PRESENTAR -->
+  <button onclick="presentar()">🎬</button>
+
+  <div id="fileName"></div>
+</header>
+
+<!-- EDITOR -->
+<div id="editor" contenteditable="true"></div>
+
+<input type="file" id="fileInput" style="display:none">
+
+<!-- PRESENTADOR -->
+<div id="presenterView">
+  <div id="textContainer"></div>
+
+  <div style="position:fixed; bottom:20px; width:100%; display:flex; gap:10px; padding:10px;">
+    <input id="minutos" type="number" placeholder="min" style="flex:1; padding:10px;">
+    <button onclick="togglePlay()">▶️</button>
+    <button onclick="salir()">❌</button>
+  </div>
+</div>
+
+<script>
+
+// =======================
+// ESTADO
+// =======================
+let filename = "untitled.html";
+const editor = document.getElementById("editor");
+
+// CARGAR
+const data = localStorage.getItem("doc");
+
+if (data) {
+  const parsed = JSON.parse(data);
+  editor.innerHTML = parsed.texto || "";
+  filename = parsed.filename || "untitled.html";
+}
+
+actualizarNombre();
+
+// GUARDAR
+function guardar() {
+  const data = {
+    texto: editor.innerHTML,
+    filename: filename
+  };
+  localStorage.setItem("doc", JSON.stringify(data));
+}
+
+editor.addEventListener("input", guardar);
+
+// NOMBRE
+function actualizarNombre() {
+  document.getElementById("fileName").innerText = filename;
+}
+
+// =======================
+// FORMATO
+// =======================
+function format(cmd) {
+  document.execCommand(cmd, false, null);
+  guardar();
+}
+
+function color(c) {
+  document.execCommand("foreColor", false, c);
+  guardar();
+}
+
+// =======================
+// IMPORTAR
+// =======================
+function importar() {
+  document.getElementById("fileInput").click();
+}
+
+fileInput.addEventListener("change", function(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+
+  filename = file.name;
+
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    editor.innerHTML = e.target.result;
+    guardar();
+    actualizarNombre();
+  };
+  reader.readAsText(file);
+});
+
+// =======================
+// EXPORTAR
+// =======================
+function exportar() {
+  const blob = new Blob([editor.innerHTML], { type: "text/html" });
+  const url = URL.createObjectURL(blob);
+
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  a.click();
+}
+
+// =======================
+// LIMPIAR
+// =======================
+function limpiar() {
+  if (confirm("¿Borrar texto?")) {
+    editor.innerHTML = "";
+    filename = "untitled.html";
+    guardar();
+    actualizarNombre();
+  }
+}
+
+// =======================
+// TELEPROMPTER
+// =======================
+let running = false;
+let position = 0;
+let speed = 0;
+let lastTime = 0;
+let totalHeight = 0;
+
+const presenterView = document.getElementById("presenterView");
+const textContainer = document.getElementById("textContainer");
+
+function presentar() {
+  if (!editor.innerHTML) return alert("No hay texto");
+
+  textContainer.innerHTML = editor.innerHTML;
+
+  presenterView.style.display = "block";
+
+  position = 0;
+  running = false;
+  lastTime = 0;
+
+  requestAnimationFrame(loop);
+}
+
+function salir() {
+  presenterView.style.display = "none";
+  running = false;
+}
+
+function togglePlay() {
+  const minutos = parseFloat(document.getElementById("minutos").value);
+  if (!minutos) return alert("Define minutos");
+
+  const segundos = minutos * 60;
+
+  totalHeight = textContainer.offsetHeight - window.innerHeight;
+
+  speed = totalHeight / segundos;
+
+  running = !running;
+}
+
+function loop(timestamp) {
+  if (!lastTime) lastTime = timestamp;
+
+  const delta = (timestamp - lastTime) / 1000;
+  lastTime = timestamp;
+
+  if (running) {
+    position += speed * delta;
+    if (position > totalHeight) position = totalHeight;
+  }
+
+  textContainer.style.transform = `translateY(-${position}px)`;
+
+  requestAnimationFrame(loop);
+}
+
+// TAP PAUSA
+presenterView.addEventListener("click", (e) => {
+  if (e.target.tagName === "BUTTON" || e.target.tagName === "INPUT") return;
+  running = !running;
+});
+
+// DRAG
+let startY = 0;
+let startPos = 0;
+
+presenterView.addEventListener("touchstart", (e) => {
+  running = false;
+  startY = e.touches[0].clientY;
+  startPos = position;
+});
+
+presenterView.addEventListener("touchmove", (e) => {
+  const currentY = e.touches[0].clientY;
+  const delta = startY - currentY;
+
+  position = startPos + delta;
+
+  if (position < 0) position = 0;
+  if (position > totalHeight) position = totalHeight;
+});
+
+</script>
+
+</body>
+</html>
