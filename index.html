@@ -1,131 +1,136 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="UTF-8">
-  <title>Teleprompter</title>
+<meta charset="UTF-8">
+<title>Teleprompter Pro</title>
 
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#000000">
 
-  <link rel="manifest" href="manifest.json">
-  <meta name="theme-color" content="#000000">
+<style>
+body {
+  margin: 0;
+  font-family: -apple-system, sans-serif;
+  background: #111;
+  color: white;
+}
 
-  <style>
-    body {
-      margin: 0;
-      font-family: -apple-system, BlinkMacSystemFont, sans-serif;
-      background: #111;
-      color: white;
-    }
+/* HEADER */
+header {
+  position: sticky;
+  top: 0;
+  display: flex;
+  gap: 6px;
+  padding: 10px;
+  background: #000;
+  flex-wrap: wrap;
+}
 
-    header {
-      position: sticky;
-      top: 0;
-      display: flex;
-      gap: 8px;
-      padding: 10px;
-      background: #000;
-      padding-top: calc(10px + env(safe-area-inset-top));
-      align-items: center;
-    }
+button {
+  padding: 10px;
+  border: none;
+  border-radius: 6px;
+  background: #333;
+  color: white;
+  font-size: 14px;
+}
 
-    button {
-      padding: 12px;
-      font-size: 14px;
-      border: none;
-      background: #333;
-      color: white;
-      border-radius: 8px;
-      min-height: 44px;
-    }
+#fileName {
+  flex: 1;
+  font-size: 12px;
+  opacity: 0.7;
+}
 
-    button:active {
-      background: #555;
-    }
+/* EDITOR */
+#editor {
+  min-height: calc(100vh - 120px);
+  padding: 16px;
+  font-size: 20px;
+  line-height: 1.6;
+  outline: none;
+}
 
-    #fileName {
-      flex: 1;
-      font-size: 13px;
-      opacity: 0.7;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-    }
+/* PRESENTADOR */
+#presenterView {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: black;
+  color: white;
+  overflow: hidden;
+}
 
-    textarea {
-      width: 100%;
-      height: calc(100vh - 70px);
-      padding: 16px;
-      font-size: 20px;
-      line-height: 1.5;
-      border: none;
-      outline: none;
-      resize: none;
-      background: #111;
-      color: white;
-      box-sizing: border-box;
-      padding-bottom: calc(16px + env(safe-area-inset-bottom));
-    }
-  </style>
+#textContainer {
+  position: absolute;
+  width: 100%;
+  text-align: center;
+  font-size: 32px;
+  line-height: 1.6;
+  padding: 40px 20px;
+}
+</style>
 </head>
 
 <body>
 
 <header>
+  <!-- ARCHIVO -->
   <button onclick="importar()">📂</button>
   <button onclick="exportar()">💾</button>
   <button onclick="limpiar()">🧹</button>
+
+  <!-- FORMATO -->
+  <button onclick="format('bold')">B</button>
+  <button onclick="format('underline')">U</button>
+  <button onclick="color('red')">🔴</button>
+  <button onclick="color('yellow')">🟡</button>
+  <button onclick="color('cyan')">🔵</button>
+
+  <!-- PRESENTAR -->
   <button onclick="presentar()">🎬</button>
+
   <div id="fileName"></div>
 </header>
 
-<textarea id="editor" placeholder="Escribe o pega tu texto aquí..."></textarea>
+<!-- EDITOR -->
+<div id="editor" contenteditable="true"></div>
 
-<input type="file" id="fileInput" accept=".txt" style="display:none">
+<input type="file" id="fileInput" style="display:none">
 
-<!-- 🎬 MODO PRESENTADOR -->
-<div id="presenterView" style="display:none; position:fixed; inset:0; background:black; color:white; overflow:hidden;">
+<!-- PRESENTADOR -->
+<div id="presenterView">
+  <div id="textContainer"></div>
 
-  <div id="textContainer" style="
-    position:absolute;
-    width:100%;
-    text-align:center;
-    font-size:32px;
-    line-height:1.6;
-    padding:40px 20px;
-    box-sizing:border-box;
-  "></div>
-
-  <div style="position:fixed; bottom:20px; left:0; right:0; display:flex; gap:10px; padding:10px;">
-    <input id="minutos" type="number" placeholder="min" style="flex:1; padding:10px; font-size:16px;">
+  <div style="position:fixed; bottom:20px; width:100%; display:flex; gap:10px; padding:10px;">
+    <input id="minutos" type="number" placeholder="min" style="flex:1; padding:10px;">
     <button onclick="togglePlay()">▶️</button>
     <button onclick="salir()">❌</button>
   </div>
-
 </div>
 
 <script>
-// =======================
-// 📄 ESTADO DEL DOCUMENTO
-// =======================
-let filename = "untitled.txt";
 
+// =======================
+// ESTADO
+// =======================
+let filename = "untitled.html";
 const editor = document.getElementById("editor");
 
-// Cargar desde localStorage
+// CARGAR
 const data = localStorage.getItem("doc");
 
 if (data) {
   const parsed = JSON.parse(data);
-  editor.value = parsed.texto || "";
-  filename = parsed.filename || "untitled.txt";
+  editor.innerHTML = parsed.texto || "";
+  filename = parsed.filename || "untitled.html";
 }
 
 actualizarNombre();
 
-// Guardado automático
+// GUARDAR
 function guardar() {
   const data = {
-    texto: editor.value,
+    texto: editor.innerHTML,
     filename: filename
   };
   localStorage.setItem("doc", JSON.stringify(data));
@@ -133,19 +138,32 @@ function guardar() {
 
 editor.addEventListener("input", guardar);
 
-// Mostrar nombre
+// NOMBRE
 function actualizarNombre() {
   document.getElementById("fileName").innerText = filename;
 }
 
 // =======================
-// 📂 IMPORTAR
+// FORMATO
+// =======================
+function format(cmd) {
+  document.execCommand(cmd, false, null);
+  guardar();
+}
+
+function color(c) {
+  document.execCommand("foreColor", false, c);
+  guardar();
+}
+
+// =======================
+// IMPORTAR
 // =======================
 function importar() {
   document.getElementById("fileInput").click();
 }
 
-document.getElementById("fileInput").addEventListener("change", function(e) {
+fileInput.addEventListener("change", function(e) {
   const file = e.target.files[0];
   if (!file) return;
 
@@ -153,7 +171,7 @@ document.getElementById("fileInput").addEventListener("change", function(e) {
 
   const reader = new FileReader();
   reader.onload = function(e) {
-    editor.value = e.target.result;
+    editor.innerHTML = e.target.result;
     guardar();
     actualizarNombre();
   };
@@ -161,10 +179,10 @@ document.getElementById("fileInput").addEventListener("change", function(e) {
 });
 
 // =======================
-// 💾 EXPORTAR
+// EXPORTAR
 // =======================
 function exportar() {
-  const blob = new Blob([editor.value], { type: "text/plain" });
+  const blob = new Blob([editor.innerHTML], { type: "text/html" });
   const url = URL.createObjectURL(blob);
 
   const a = document.createElement("a");
@@ -174,19 +192,19 @@ function exportar() {
 }
 
 // =======================
-// 🧹 NUEVO
+// LIMPIAR
 // =======================
 function limpiar() {
-  if (confirm("¿Borrar texto actual?")) {
-    editor.value = "";
-    filename = "untitled.txt";
+  if (confirm("¿Borrar texto?")) {
+    editor.innerHTML = "";
+    filename = "untitled.html";
     guardar();
     actualizarNombre();
   }
 }
 
 // =======================
-// 🎬 TELEPROMPTER
+// TELEPROMPTER
 // =======================
 let running = false;
 let position = 0;
@@ -198,9 +216,9 @@ const presenterView = document.getElementById("presenterView");
 const textContainer = document.getElementById("textContainer");
 
 function presentar() {
-  if (!editor.value) return alert("No hay texto");
+  if (!editor.innerHTML) return alert("No hay texto");
 
-  textContainer.innerText = editor.value;
+  textContainer.innerHTML = editor.innerHTML;
 
   presenterView.style.display = "block";
 
@@ -245,13 +263,13 @@ function loop(timestamp) {
   requestAnimationFrame(loop);
 }
 
-// Tap para pausar
+// TAP PAUSA
 presenterView.addEventListener("click", (e) => {
   if (e.target.tagName === "BUTTON" || e.target.tagName === "INPUT") return;
   running = !running;
 });
 
-// Drag táctil
+// DRAG
 let startY = 0;
 let startPos = 0;
 
@@ -271,12 +289,6 @@ presenterView.addEventListener("touchmove", (e) => {
   if (position > totalHeight) position = totalHeight;
 });
 
-// =======================
-// ⚙️ SERVICE WORKER
-// =======================
-if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.register("service-worker.js");
-}
 </script>
 
 </body>
