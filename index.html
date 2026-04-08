@@ -2,59 +2,51 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<title>Teleprompter Pro</title>
-
-<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<meta name="theme-color" content="#000000">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Teleprompter</title>
 
 <style>
 body {
   margin: 0;
-  font-family: -apple-system, sans-serif;
-  background: #111;
-  color: white;
+  font-family: sans-serif;
 }
 
-/* HEADER */
 header {
-  position: sticky;
+  position: fixed;
   top: 0;
-  display: flex;
-  gap: 6px;
+  width: 100%;
+  background: #111;
+  color: white;
   padding: 10px;
-  background: #000;
+  z-index: 10;
+  display: flex;
   flex-wrap: wrap;
+  gap: 5px;
 }
 
 button {
-  padding: 10px;
-  border: none;
-  border-radius: 6px;
-  background: #333;
-  color: white;
-  font-size: 14px;
+  font-size: 16px;
+  padding: 8px;
 }
 
-#fileName {
-  flex: 1;
-  font-size: 12px;
-  opacity: 0.7;
+input[type="range"] {
+  width: 100px;
 }
 
-/* EDITOR */
 #editor {
-  min-height: calc(100vh - 120px);
-  padding: 16px;
-  font-size: 20px;
-  line-height: 1.6;
+  margin-top: 120px;
+  padding: 10px;
+  min-height: 300px;
   outline: none;
 }
 
-/* PRESENTADOR */
-#presenterView {
+#presenter {
   display: none;
   position: fixed;
-  inset: 0;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
   background: black;
   color: white;
   overflow: hidden;
@@ -63,7 +55,11 @@ button {
 #textContainer {
   position: absolute;
   width: 100%;
-  box-sizing: border-box; /* 🔥 ESTA ES LA CLAVE */
+  max-width: 800px;
+  margin: 0 auto;
+  left: 0;
+  right: 0;
+  box-sizing: border-box;
   text-align: center;
   font-size: 32px;
   line-height: 1.6;
@@ -78,221 +74,130 @@ button {
 <body>
 
 <header>
-  <!-- ARCHIVO -->
-  <button onclick="importar()">📂</button>
-  <button onclick="exportar()">💾</button>
-  <button onclick="limpiar()">🧹</button>
-
-  <!-- FORMATO -->
-  <button onclick="format('bold')">B</button>
-  <button onclick="format('underline')">U</button>
   <button onclick="color('red')">🔴</button>
   <button onclick="color('yellow')">🟡</button>
   <button onclick="color('cyan')">🔵</button>
+  <button onclick="clearColor()">🚫🎨</button>
 
-  <!-- PRESENTAR -->
-  <button onclick="presentar()">🎬</button>
+  <input type="range" min="14" max="40" value="20" oninput="setEditorSize(this.value)">
+  <input type="range" min="20" max="80" value="32" oninput="setPresenterSize(this.value)">
 
-  <div id="fileName"></div>
+  <button onclick="presentar()">▶ Presentar</button>
 </header>
 
-<!-- EDITOR -->
 <div id="editor" contenteditable="true"></div>
 
-<input type="file" id="fileInput" style="display:none">
-
-<!-- PRESENTADOR -->
-<div id="presenterView">
+<div id="presenter" onclick="toggleScroll()">
   <div id="textContainer"></div>
-
-  <div style="position:fixed; bottom:20px; width:100%; display:flex; gap:10px; padding:10px;">
-    <input id="minutos" type="number" placeholder="min" style="flex:1; padding:10px;">
-    <button onclick="togglePlay()">▶️</button>
-    <button onclick="salir()">❌</button>
-  </div>
 </div>
 
 <script>
+let editor = document.getElementById("editor");
+let presenter = document.getElementById("presenter");
+let textContainer = document.getElementById("textContainer");
 
-// =======================
-// ESTADO
-// =======================
-let filename = "untitled.html";
-const editor = document.getElementById("editor");
+let scrollInterval;
+let scrolling = false;
 
-// CARGAR
-const data = localStorage.getItem("doc");
+let fontSizeEditor = 20;
+let fontSizePresenter = 32;
 
-if (data) {
-  const parsed = JSON.parse(data);
-  editor.innerHTML = parsed.texto || "";
-  filename = parsed.filename || "untitled.html";
-}
+let minutos = 5;
 
-actualizarNombre();
-
-// GUARDAR
-function guardar() {
-  const data = {
-    texto: editor.innerHTML,
-    filename: filename
-  };
-  localStorage.setItem("doc", JSON.stringify(data));
-}
-
-editor.addEventListener("input", guardar);
-
-// NOMBRE
-function actualizarNombre() {
-  document.getElementById("fileName").innerText = filename;
-}
-
-// =======================
-// FORMATO
-// =======================
-function format(cmd) {
-  document.execCommand(cmd, false, null);
-  guardar();
-}
-
+// ======================
+// FORMATOS
+// ======================
 function color(c) {
   document.execCommand("foreColor", false, c);
   guardar();
 }
 
-// =======================
-// IMPORTAR
-// =======================
-function importar() {
-  document.getElementById("fileInput").click();
+function clearColor() {
+  document.execCommand("removeFormat", false, null);
+  guardar();
 }
 
-fileInput.addEventListener("change", function(e) {
-  const file = e.target.files[0];
-  if (!file) return;
-
-  filename = file.name;
-
-  const reader = new FileReader();
-  reader.onload = function(e) {
-    editor.innerHTML = e.target.result;
-    guardar();
-    actualizarNombre();
-  };
-  reader.readAsText(file);
-});
-
-// =======================
-// EXPORTAR
-// =======================
-function exportar() {
-  const blob = new Blob([editor.innerHTML], { type: "text/html" });
-  const url = URL.createObjectURL(blob);
-
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = filename;
-  a.click();
+// ======================
+// TAMAÑOS
+// ======================
+function setEditorSize(size) {
+  fontSizeEditor = size;
+  editor.style.fontSize = size + "px";
+  guardar();
 }
 
-// =======================
-// LIMPIAR
-// =======================
-function limpiar() {
-  if (confirm("¿Borrar texto?")) {
-    editor.innerHTML = "";
-    filename = "untitled.html";
-    guardar();
-    actualizarNombre();
-  }
+function setPresenterSize(size) {
+  fontSizePresenter = size;
+  textContainer.style.fontSize = size + "px";
+
+  // 🔥 OPCIÓN B: detener scroll al cambiar tamaño
+  detenerScroll();
 }
 
-// =======================
-// TELEPROMPTER
-// =======================
-let running = false;
-let position = 0;
-let speed = 0;
-let lastTime = 0;
-let totalHeight = 0;
-
-const presenterView = document.getElementById("presenterView");
-const textContainer = document.getElementById("textContainer");
-
+// ======================
+// PRESENTADOR
+// ======================
 function presentar() {
-  if (!editor.innerHTML) return alert("No hay texto");
-
+  presenter.style.display = "block";
   textContainer.innerHTML = editor.innerHTML;
+  textContainer.style.fontSize = fontSizePresenter + "px";
 
-  presenterView.style.display = "block";
-
-  position = 0;
-  running = false;
-  lastTime = 0;
-
-  requestAnimationFrame(loop);
+  window.scrollTo(0, 0);
+  iniciarScroll();
 }
 
-function salir() {
-  presenterView.style.display = "none";
-  running = false;
+function iniciarScroll() {
+  detenerScroll();
+
+  let totalHeight = textContainer.scrollHeight - window.innerHeight;
+  let duration = minutos * 60 * 1000;
+  let velocidad = totalHeight / duration;
+
+  scrolling = true;
+
+  scrollInterval = setInterval(() => {
+    window.scrollBy(0, velocidad * 16);
+  }, 16);
 }
 
-function togglePlay() {
-  const minutos = parseFloat(document.getElementById("minutos").value);
-  if (!minutos) return alert("Define minutos");
-
-  const segundos = minutos * 60;
-
-  totalHeight = textContainer.offsetHeight - window.innerHeight;
-
-  speed = totalHeight / segundos;
-
-  running = !running;
+function detenerScroll() {
+  clearInterval(scrollInterval);
+  scrolling = false;
 }
 
-function loop(timestamp) {
-  if (!lastTime) lastTime = timestamp;
+function toggleScroll() {
+  if (scrolling) {
+    detenerScroll();
+  } else {
+    iniciarScroll();
+  }
+}
 
-  const delta = (timestamp - lastTime) / 1000;
-  lastTime = timestamp;
+// ======================
+// GUARDADO LOCAL
+// ======================
+function guardar() {
+  const data = {
+    texto: editor.innerHTML,
+    fontSizeEditor,
+    fontSizePresenter
+  };
+  localStorage.setItem("teleprompter", JSON.stringify(data));
+}
 
-  if (running) {
-    position += speed * delta;
-    if (position > totalHeight) position = totalHeight;
+// cargar
+window.onload = () => {
+  let data = localStorage.getItem("teleprompter");
+
+  if (data) {
+    let parsed = JSON.parse(data);
+    editor.innerHTML = parsed.texto || "";
+    fontSizeEditor = parsed.fontSizeEditor || 20;
+    fontSizePresenter = parsed.fontSizePresenter || 32;
   }
 
-  textContainer.style.transform = `translateY(-${position}px)`;
-
-  requestAnimationFrame(loop);
-}
-
-// TAP PAUSA
-presenterView.addEventListener("click", (e) => {
-  if (e.target.tagName === "BUTTON" || e.target.tagName === "INPUT") return;
-  running = !running;
-});
-
-// DRAG
-let startY = 0;
-let startPos = 0;
-
-presenterView.addEventListener("touchstart", (e) => {
-  running = false;
-  startY = e.touches[0].clientY;
-  startPos = position;
-});
-
-presenterView.addEventListener("touchmove", (e) => {
-  const currentY = e.touches[0].clientY;
-  const delta = startY - currentY;
-
-  position = startPos + delta;
-
-  if (position < 0) position = 0;
-  if (position > totalHeight) position = totalHeight;
-});
-
+  editor.style.fontSize = fontSizeEditor + "px";
+};
 </script>
 
 </body>
