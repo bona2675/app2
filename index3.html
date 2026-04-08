@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Teleprompter</title>
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#000000">
+
+  <style>
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+      background: #111;
+      color: white;
+    }
+
+    header {
+      position: sticky;
+      top: 0;
+      display: flex;
+      gap: 8px;
+      padding: 10px;
+      background: #000;
+      padding-top: calc(10px + env(safe-area-inset-top));
+      align-items: center;
+    }
+
+    button {
+      padding: 12px;
+      font-size: 14px;
+      border: none;
+      background: #333;
+      color: white;
+      border-radius: 8px;
+      min-height: 44px;
+    }
+
+    button:active {
+      background: #555;
+    }
+
+    #fileName {
+      flex: 1;
+      font-size: 13px;
+      opacity: 0.7;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    textarea {
+      width: 100%;
+      height: calc(100vh - 70px);
+      padding: 16px;
+      font-size: 20px;
+      line-height: 1.5;
+      border: none;
+      outline: none;
+      resize: none;
+      background: #111;
+      color: white;
+      box-sizing: border-box;
+      padding-bottom: calc(16px + env(safe-area-inset-bottom));
+    }
+  </style>
+</head>
+
+<body>
+
+<header>
+  <button onclick="importar()">📂</button>
+  <button onclick="exportar()">💾</button>
+  <button onclick="limpiar()">🧹</button>
+  <button onclick="presentar()">🎬</button>
+  <div id="fileName"></div>
+</header>
+
+<textarea id="editor" placeholder="Escribe o pega tu texto aquí..."></textarea>
+
+<input type="file" id="fileInput" accept=".txt" style="display:none">
+
+<!-- 🎬 MODO PRESENTADOR -->
+<div id="presenterView" style="display:none; position:fixed; inset:0; background:black; color:white; overflow:hidden;">
+
+  <div id="textContainer" style="
+    position:absolute;
+    width:100%;
+    text-align:center;
+    font-size:32px;
+    line-height:1.6;
+    padding:40px 20px;
+    box-sizing:border-box;
+  "></div>
+
+  <div style="position:fixed; bottom:20px; left:0; right:0; display:flex; gap:10px; padding:10px;">
+    <input id="minutos" type="number" placeholder="min" style="flex:1; padding:10px; font-size:16px;">
+    <button onclick="togglePlay()">▶️</button>
+    <button onclick="salir()">❌</button>
+  </div>
+
+</div>
+
+<script>
+// =======================
+// 📄 ESTADO DEL DOCUMENTO
+// =======================
+let filename = "untitled.txt";
+
+const editor = document.getElementById("editor");
+
+// Cargar desde localStorage
+const data = localStorage.getItem("doc");
+
+if (data) {
+  const parsed = JSON.parse(data);
+  editor.value = parsed.texto || "";
+  filename = parsed.filename || "untitled.txt";
+}
+
+actualizarNombre();
+
+// Guardado automático
+function guardar() {
+  const data = {
+    texto: editor.value,
+    filename: filename
+  };
+  localStorage.setItem("doc", JSON.stringify(data));
+}
+
+editor.addEventListener("input", guardar);
+
+// Mostrar nombre
+function actualizarNombre() {
+  document.getElementById("fileName").innerText = filename;
+}
+
+// =======================
+// 📂 IMPORTAR
+// =======================
+function importar() {
+  document.getElementById("fileInput").click();
+}
+
+document.getElementById("fileInput").addEventListener("change", function(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+
+  filename = file.name;
+
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    editor.value = e.target.result;
+    guardar();
+    actualizarNombre();
+  };
+  reader.readAsText(file);
+});
+
+// =======================
+// 💾 EXPORTAR
+// =======================
+function exportar() {
+  const blob = new Blob([editor.value], { type: "text/plain" });
+  const url = URL.createObjectURL(blob);
+
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  a.click();
+}
+
+// =======================
+// 🧹 NUEVO
+// =======================
+function limpiar() {
+  if (confirm("¿Borrar texto actual?")) {
+    editor.value = "";
+    filename = "untitled.txt";
+    guardar();
+    actualizarNombre();
+  }
+}
+
+// =======================
+// 🎬 TELEPROMPTER
+// =======================
+let running = false;
+let position = 0;
+let speed = 0;
+let lastTime = 0;
+let totalHeight = 0;
+
+const presenterView = document.getElementById("presenterView");
+const textContainer = document.getElementById("textContainer");
+
+function presentar() {
+  if (!editor.value) return alert("No hay texto");
+
+  textContainer.innerText = editor.value;
+
+  presenterView.style.display = "block";
+
+  position = 0;
+  running = false;
+  lastTime = 0;
+
+  requestAnimationFrame(loop);
+}
+
+function salir() {
+  presenterView.style.display = "none";
+  running = false;
+}
+
+function togglePlay() {
+  const minutos = parseFloat(document.getElementById("minutos").value);
+  if (!minutos) return alert("Define minutos");
+
+  const segundos = minutos * 60;
+
+  totalHeight = textContainer.offsetHeight - window.innerHeight;
+
+  speed = totalHeight / segundos;
+
+  running = !running;
+}
+
+function loop(timestamp) {
+  if (!lastTime) lastTime = timestamp;
+
+  const delta = (timestamp - lastTime) / 1000;
+  lastTime = timestamp;
+
+  if (running) {
+    position += speed * delta;
+    if (position > totalHeight) position = totalHeight;
+  }
+
+  textContainer.style.transform = `translateY(-${position}px)`;
+
+  requestAnimationFrame(loop);
+}
+
+// Tap para pausar
+presenterView.addEventListener("click", (e) => {
+  if (e.target.tagName === "BUTTON" || e.target.tagName === "INPUT") return;
+  running = !running;
+});
+
+// Drag táctil
+let startY = 0;
+let startPos = 0;
+
+presenterView.addEventListener("touchstart", (e) => {
+  running = false;
+  startY = e.touches[0].clientY;
+  startPos = position;
+});
+
+presenterView.addEventListener("touchmove", (e) => {
+  const currentY = e.touches[0].clientY;
+  const delta = startY - currentY;
+
+  position = startPos + delta;
+
+  if (position < 0) position = 0;
+  if (position > totalHeight) position = totalHeight;
+});
+
+// =======================
+// ⚙️ SERVICE WORKER
+// =======================
+if ("serviceWorker" in navigator) {
+  navigator.serviceWorker.register("service-worker.js");
+}
+</script>
+
+</body>
+</html>
