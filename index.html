@@ -99,9 +99,8 @@ input[type="range"] {
   <button onclick="color('cyan')">🔵</button>
   <button onclick="clearColor()">🚫🎨</button>
 
-  <!-- TAMAÑOS -->
+  <!-- TAMAÑO EDITOR -->
   <input type="range" min="14" max="40" oninput="setEditorSize(this.value)">
-  <input type="range" min="20" max="80" oninput="setPresenterSize(this.value)">
 
   <!-- PRESENTAR -->
   <button onclick="presentar()">🎬</button>
@@ -117,10 +116,21 @@ input[type="range"] {
 <div id="presenterView">
   <div id="textContainer"></div>
 
-  <div style="position:fixed; bottom:20px; width:100%; display:flex; gap:10px; padding:10px;">
-    <input id="minutos" type="number" placeholder="min" style="flex:1; padding:10px;">
-    <button onclick="togglePlay()">▶️</button>
-    <button onclick="salir()">❌</button>
+  <div style="position:fixed; bottom:20px; width:100%; display:flex; flex-direction:column; gap:10px; padding:10px;">
+
+    <!-- CONTROLES -->
+    <div style="display:flex; gap:10px;">
+      <input id="minutos" type="number" placeholder="min" style="flex:1; padding:10px;">
+      <button onclick="togglePlay()">▶️</button>
+      <button onclick="salir()">❌</button>
+    </div>
+
+    <!-- SLIDER TAMAÑO -->
+    <div style="display:flex; align-items:center; gap:10px;">
+      <span id="sizeLabel">A: 32px</span>
+      <input id="sizeSlider" type="range" min="20" max="80">
+    </div>
+
   </div>
 </div>
 
@@ -199,8 +209,10 @@ function setPresenterSize(size) {
   fontSizePresenter = size;
   textContainer.style.fontSize = size + "px";
 
-  // 🔥 PAUSA AUTOMÁTICA
+  // 🔥 pausa automática
   running = false;
+
+  guardar();
 }
 
 // =======================
@@ -270,6 +282,10 @@ function presentar() {
 
   presenterView.style.display = "block";
 
+  // inicializar slider
+  sizeSlider.value = fontSizePresenter;
+  sizeLabel.innerText = "A: " + fontSizePresenter + "px";
+
   position = 0;
   running = false;
   lastTime = 0;
@@ -334,6 +350,17 @@ presenterView.addEventListener("touchmove", (e) => {
 
   if (position < 0) position = 0;
   if (position > totalHeight) position = totalHeight;
+});
+
+// =======================
+// SLIDER PRESENTADOR
+// =======================
+const sizeSlider = document.getElementById("sizeSlider");
+const sizeLabel = document.getElementById("sizeLabel");
+
+sizeSlider.addEventListener("input", function() {
+  setPresenterSize(this.value);
+  sizeLabel.innerText = "A: " + this.value + "px";
 });
 
 </script>
