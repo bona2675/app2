@@ -120,8 +120,11 @@ button {
   <div id="textContainer"></div>
 
   <div id="controls">
-    <input id="minutos" type="number" placeholder="min" style="flex:1; padding:10px;">
-    
+    <input id="minutos" type="number" placeholder="min"
+      style="flex:1; padding:10px;"
+      onclick="editarDuracion()"
+      readonly>
+
     <button onclick="togglePlay()">▶️</button>
 
     <input id="fontSizeSlider" type="range" min="20" max="80" value="32">
@@ -167,7 +170,6 @@ function actualizarNombre() {
 // EDITAR NOMBRE
 // =======================
 function editarNombre() {
-  // quitar .html para mostrar limpio
   let nombreBase = filename.replace(/\.html$/, "");
 
   let nuevo = prompt("Nombre del archivo:", nombreBase);
@@ -264,6 +266,11 @@ function presentar() {
 
   presenterView.style.display = "block";
 
+  const inputMin = document.getElementById("minutos");
+  if (!inputMin.value) {
+    inputMin.value = 30;
+  }
+
   position = 0;
   running = false;
   lastTime = 0;
@@ -271,6 +278,28 @@ function presentar() {
   recalcularAltura();
 
   requestAnimationFrame(loop);
+}
+
+function editarDuracion() {
+  const input = document.getElementById("minutos");
+
+  let actual = input.value || 30;
+
+  let nuevo = prompt("Duración en minutos:", actual);
+
+  if (!nuevo) return;
+
+  nuevo = parseFloat(nuevo);
+
+  if (isNaN(nuevo) || nuevo <= 0) {
+    alert("Valor inválido");
+    return;
+  }
+
+  input.value = nuevo;
+
+  recalcularAltura();
+  speed = totalHeight / (nuevo * 60);
 }
 
 function salir() {
