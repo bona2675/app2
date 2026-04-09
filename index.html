@@ -35,19 +35,17 @@ button {
   font-size: 14px;
 }
 
-input[type="range"] {
-  width: 90px;
-}
-
 #fileName {
   flex: 1;
   font-size: 12px;
   opacity: 0.7;
+  cursor: pointer;
+  text-decoration: underline;
 }
 
 /* EDITOR */
 #editor {
-  min-height: calc(100vh - 140px);
+  min-height: calc(100vh - 120px);
   padding: 16px;
   font-size: 20px;
   line-height: 1.6;
@@ -67,18 +65,30 @@ input[type="range"] {
 #textContainer {
   position: absolute;
   width: 100%;
-  max-width: 800px;
-  margin: 0 auto;
-  left: 0;
-  right: 0;
   box-sizing: border-box;
   text-align: center;
   font-size: 32px;
   line-height: 1.6;
   padding: 40px 20px;
-
   overflow-wrap: break-word;
   word-break: break-word;
+}
+
+/* CONTROLES PRESENTADOR */
+#controls {
+  position: fixed;
+  bottom: 20px;
+  width: 100%;
+  display: flex;
+  gap: 10px;
+  padding: 10px;
+  align-items: center;
+}
+
+#fontSizeLabel {
+  font-size: 12px;
+  width: 50px;
+  text-align: center;
 }
 </style>
 </head>
@@ -86,51 +96,38 @@ input[type="range"] {
 <body>
 
 <header>
-  <!-- ARCHIVO -->
   <button onclick="importar()">📂</button>
   <button onclick="exportar()">💾</button>
   <button onclick="limpiar()">🧹</button>
 
-  <!-- FORMATO -->
   <button onclick="format('bold')">B</button>
   <button onclick="format('underline')">U</button>
   <button onclick="color('red')">🔴</button>
   <button onclick="color('yellow')">🟡</button>
   <button onclick="color('cyan')">🔵</button>
-  <button onclick="clearColor()">🚫🎨</button>
+  <button onclick="color('white')">⚪</button>
 
-  <!-- TAMAÑO EDITOR -->
-  <input type="range" min="14" max="40" oninput="setEditorSize(this.value)">
-
-  <!-- PRESENTAR -->
   <button onclick="presentar()">🎬</button>
 
-  <div id="fileName"></div>
+  <div id="fileName" onclick="editarNombre()"></div>
 </header>
 
 <div id="editor" contenteditable="true"></div>
 
 <input type="file" id="fileInput" style="display:none">
 
-<!-- PRESENTADOR -->
 <div id="presenterView">
   <div id="textContainer"></div>
 
-  <div style="position:fixed; bottom:20px; width:100%; display:flex; flex-direction:column; gap:10px; padding:10px;">
+  <div id="controls">
+    <input id="minutos" type="number" placeholder="min" style="flex:1; padding:10px;">
+    
+    <button onclick="togglePlay()">▶️</button>
 
-    <!-- CONTROLES -->
-    <div style="display:flex; gap:10px;">
-      <input id="minutos" type="number" placeholder="min" style="flex:1; padding:10px;">
-      <button onclick="togglePlay()">▶️</button>
-      <button onclick="salir()">❌</button>
-    </div>
+    <input id="fontSizeSlider" type="range" min="20" max="80" value="32">
+    <div id="fontSizeLabel">32px</div>
 
-    <!-- SLIDER TAMAÑO -->
-    <div style="display:flex; align-items:center; gap:10px;">
-      <span id="sizeLabel">A: 32px</span>
-      <input id="sizeSlider" type="range" min="20" max="80">
-    </div>
-
+    <button onclick="salir()">❌</button>
   </div>
 </div>
 
@@ -140,42 +137,50 @@ input[type="range"] {
 // ESTADO
 // =======================
 let filename = "untitled.html";
-let fontSizeEditor = 20;
-let fontSizePresenter = 32;
-
 const editor = document.getElementById("editor");
 
-// CARGAR
 const data = localStorage.getItem("doc");
 
 if (data) {
   const parsed = JSON.parse(data);
   editor.innerHTML = parsed.texto || "";
   filename = parsed.filename || "untitled.html";
-  fontSizeEditor = parsed.fontSizeEditor || 20;
-  fontSizePresenter = parsed.fontSizePresenter || 32;
 }
-
-editor.style.fontSize = fontSizeEditor + "px";
 
 actualizarNombre();
 
-// GUARDAR
 function guardar() {
   const data = {
     texto: editor.innerHTML,
-    filename,
-    fontSizeEditor,
-    fontSizePresenter
+    filename: filename
   };
   localStorage.setItem("doc", JSON.stringify(data));
 }
 
 editor.addEventListener("input", guardar);
 
-// NOMBRE
 function actualizarNombre() {
   document.getElementById("fileName").innerText = filename;
+}
+
+// =======================
+// EDITAR NOMBRE
+// =======================
+function editarNombre() {
+  // quitar .html para mostrar limpio
+  let nombreBase = filename.replace(/\.html$/, "");
+
+  let nuevo = prompt("Nombre del archivo:", nombreBase);
+
+  if (!nuevo) return;
+
+  nuevo = nuevo.trim();
+  if (nuevo === "") return;
+
+  filename = nuevo + ".html";
+
+  actualizarNombre();
+  guardar();
 }
 
 // =======================
@@ -188,30 +193,6 @@ function format(cmd) {
 
 function color(c) {
   document.execCommand("foreColor", false, c);
-  guardar();
-}
-
-function clearColor() {
-  document.execCommand("removeFormat", false, null);
-  guardar();
-}
-
-// =======================
-// TAMAÑOS
-// =======================
-function setEditorSize(size) {
-  fontSizeEditor = size;
-  editor.style.fontSize = size + "px";
-  guardar();
-}
-
-function setPresenterSize(size) {
-  fontSizePresenter = size;
-  textContainer.style.fontSize = size + "px";
-
-  // 🔥 pausa automática
-  running = false;
-
   guardar();
 }
 
@@ -273,22 +254,21 @@ let totalHeight = 0;
 
 const presenterView = document.getElementById("presenterView");
 const textContainer = document.getElementById("textContainer");
+const slider = document.getElementById("fontSizeSlider");
+const label = document.getElementById("fontSizeLabel");
 
 function presentar() {
   if (!editor.innerHTML) return alert("No hay texto");
 
   textContainer.innerHTML = editor.innerHTML;
-  textContainer.style.fontSize = fontSizePresenter + "px";
 
   presenterView.style.display = "block";
-
-  // inicializar slider
-  sizeSlider.value = fontSizePresenter;
-  sizeLabel.innerText = "A: " + fontSizePresenter + "px";
 
   position = 0;
   running = false;
   lastTime = 0;
+
+  recalcularAltura();
 
   requestAnimationFrame(loop);
 }
@@ -298,17 +278,41 @@ function salir() {
   running = false;
 }
 
+function recalcularAltura() {
+  totalHeight = textContainer.offsetHeight - window.innerHeight;
+}
+
 function togglePlay() {
   const minutos = parseFloat(document.getElementById("minutos").value);
   if (!minutos) return alert("Define minutos");
 
   const segundos = minutos * 60;
 
-  totalHeight = textContainer.scrollHeight - window.innerHeight;
+  recalcularAltura();
   speed = totalHeight / segundos;
 
   running = !running;
 }
+
+slider.addEventListener("input", () => {
+  const wasRunning = running;
+  running = false;
+
+  const size = slider.value;
+  textContainer.style.fontSize = size + "px";
+  label.innerText = size + "px";
+
+  requestAnimationFrame(() => {
+    recalcularAltura();
+
+    const minutos = parseFloat(document.getElementById("minutos").value);
+    if (minutos) {
+      speed = totalHeight / (minutos * 60);
+    }
+
+    running = wasRunning;
+  });
+});
 
 function loop(timestamp) {
   if (!lastTime) lastTime = timestamp;
@@ -350,17 +354,6 @@ presenterView.addEventListener("touchmove", (e) => {
 
   if (position < 0) position = 0;
   if (position > totalHeight) position = totalHeight;
-});
-
-// =======================
-// SLIDER PRESENTADOR
-// =======================
-const sizeSlider = document.getElementById("sizeSlider");
-const sizeLabel = document.getElementById("sizeLabel");
-
-sizeSlider.addEventListener("input", function() {
-  setPresenterSize(this.value);
-  sizeLabel.innerText = "A: " + this.value + "px";
 });
 
 </script>
