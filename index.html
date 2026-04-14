@@ -24,6 +24,7 @@ header {
   padding: 10px;
   background: #000;
   flex-wrap: wrap;
+  align-items: center;
 }
 
 button {
@@ -35,8 +36,8 @@ button {
   font-size: 14px;
 }
 
-#fileName {
-  flex: 1;
+/* TEXTO CLICKABLE */
+.clickable {
   font-size: 12px;
   opacity: 0.7;
   cursor: pointer;
@@ -45,25 +46,11 @@ button {
 
 /* EDITOR */
 #editor {
-  min-height: calc(100vh - 160px);
+  min-height: calc(100vh - 120px);
   padding: 16px;
   font-size: 20px;
   line-height: 1.4;
   outline: none;
-}
-
-/* CONTROLES EDITOR */
-#editorControls {
-  display: flex;
-  gap: 10px;
-  padding: 10px;
-  align-items: center;
-}
-
-#editorFontLabel {
-  font-size: 12px;
-  width: 50px;
-  text-align: center;
 }
 
 /* PRESENTADOR */
@@ -84,8 +71,6 @@ button {
   font-size: 32px;
   line-height: 1.3;
   padding: 40px 20px;
-  overflow-wrap: break-word;
-  word-break: break-word;
 }
 
 /* CONTROLES PRESENTADOR */
@@ -94,16 +79,16 @@ button {
   bottom: 0;
   width: 100%;
   display: flex;
-  gap: 10px;
-  padding: 10px;
-  padding-bottom: calc(10px + env(safe-area-inset-bottom));
+  gap: 8px;
+  padding: 8px;
+  padding-bottom: calc(8px + env(safe-area-inset-bottom));
   align-items: center;
   background: rgba(0,0,0,0.6);
 }
 
 #fontSizeLabel {
   font-size: 12px;
-  width: 50px;
+  width: 45px;
   text-align: center;
 }
 </style>
@@ -123,18 +108,16 @@ button {
   <button onclick="color('cyan')">🔵</button>
   <button onclick="color('white')">⚪</button>
 
+  <!-- 🎚️ SLIDER EDITOR -->
+  <input id="editorFontSlider" type="range" min="16" max="40" value="20" style="flex:1;">
+  <div id="editorFontLabel">20px</div>
+
   <button onclick="presentar()">🎬</button>
 
-  <div id="fileName" onclick="editarNombre()"></div>
+  <div id="fileName" class="clickable" onclick="editarNombre()"></div>
 </header>
 
 <div id="editor" contenteditable="true"></div>
-
-<!-- CONTROLES EDITOR -->
-<div id="editorControls">
-  <input id="editorFontSlider" type="range" min="16" max="40" value="20">
-  <div id="editorFontLabel">20px</div>
-</div>
 
 <input type="file" id="fileInput" style="display:none">
 
@@ -142,10 +125,8 @@ button {
   <div id="textContainer"></div>
 
   <div id="controls">
-    <input id="minutos" type="number"
-      style="flex:1; padding:10px;"
-      onclick="editarDuracion()"
-      readonly>
+    <!-- ⏱ TEXTO EN VEZ DE INPUT -->
+    <div id="duracionLabel" class="clickable" onclick="editarDuracion()">30 min</div>
 
     <button onclick="togglePlay()">▶️</button>
 
@@ -162,6 +143,8 @@ button {
 // ESTADO
 // =======================
 let filename = "untitled.html";
+let duracion = 30;
+
 const editor = document.getElementById("editor");
 
 const data = localStorage.getItem("doc");
@@ -173,6 +156,7 @@ if (data) {
 }
 
 actualizarNombre();
+actualizarDuracionLabel();
 
 function guardar() {
   const data = {
@@ -188,23 +172,42 @@ function actualizarNombre() {
   document.getElementById("fileName").innerText = filename;
 }
 
+function actualizarDuracionLabel() {
+  document.getElementById("duracionLabel").innerText = duracion + " min";
+}
+
 // =======================
 // EDITAR NOMBRE
 // =======================
 function editarNombre() {
-  let nombreBase = filename.replace(/\.html$/, "");
+  let base = filename.replace(/\.html$/, "");
+  let nuevo = prompt("Nombre del archivo:", base);
 
-  let nuevo = prompt("Nombre del archivo:", nombreBase);
+  if (!nuevo) return;
+  nuevo = nuevo.trim();
+  if (!nuevo) return;
+
+  filename = nuevo + ".html";
+  actualizarNombre();
+  guardar();
+}
+
+// =======================
+// DURACION
+// =======================
+function editarDuracion() {
+  let nuevo = prompt("Duración en minutos:", duracion);
 
   if (!nuevo) return;
 
-  nuevo = nuevo.trim();
-  if (nuevo === "") return;
+  nuevo = parseFloat(nuevo);
+  if (isNaN(nuevo) || nuevo <= 0) return alert("Valor inválido");
 
-  filename = nuevo + ".html";
+  duracion = nuevo;
+  actualizarDuracionLabel();
 
-  actualizarNombre();
-  guardar();
+  recalcularAltura();
+  speed = totalHeight / (duracion * 60);
 }
 
 // =======================
@@ -221,7 +224,7 @@ function color(c) {
 }
 
 // =======================
-// EDITOR FONT SIZE
+// EDITOR FONT
 // =======================
 const editorSlider = document.getElementById("editorFontSlider");
 const editorLabel = document.getElementById("editorFontLabel");
@@ -233,20 +236,20 @@ editorSlider.addEventListener("input", () => {
 });
 
 // =======================
-// IMPORTAR
+// IMPORTAR / EXPORTAR
 // =======================
 function importar() {
-  document.getElementById("fileInput").click();
+  fileInput.click();
 }
 
-fileInput.addEventListener("change", function(e) {
+fileInput.addEventListener("change", e => {
   const file = e.target.files[0];
   if (!file) return;
 
   filename = file.name;
 
   const reader = new FileReader();
-  reader.onload = function(e) {
+  reader.onload = e => {
     editor.innerHTML = e.target.result;
     guardar();
     actualizarNombre();
@@ -254,9 +257,6 @@ fileInput.addEventListener("change", function(e) {
   reader.readAsText(file);
 });
 
-// =======================
-// EXPORTAR
-// =======================
 function exportar() {
   const blob = new Blob([editor.innerHTML], { type: "text/html" });
   const url = URL.createObjectURL(blob);
@@ -299,30 +299,12 @@ function presentar() {
   textContainer.innerHTML = editor.innerHTML;
   presenterView.style.display = "block";
 
-  const inputMin = document.getElementById("minutos");
-  if (!inputMin.value) inputMin.value = 30;
-
   position = 0;
   running = false;
   lastTime = 0;
 
   recalcularAltura();
   requestAnimationFrame(loop);
-}
-
-function editarDuracion() {
-  const input = document.getElementById("minutos");
-  let actual = input.value || 30;
-
-  let nuevo = prompt("Duración en minutos:", actual);
-  if (!nuevo) return;
-
-  nuevo = parseFloat(nuevo);
-  if (isNaN(nuevo) || nuevo <= 0) return alert("Valor inválido");
-
-  input.value = nuevo;
-  recalcularAltura();
-  speed = totalHeight / (nuevo * 60);
 }
 
 function salir() {
@@ -335,13 +317,8 @@ function recalcularAltura() {
 }
 
 function togglePlay() {
-  const minutos = parseFloat(document.getElementById("minutos").value);
-  if (!minutos) return alert("Define minutos");
-
-  const segundos = minutos * 60;
   recalcularAltura();
-  speed = totalHeight / segundos;
-
+  speed = totalHeight / (duracion * 60);
   running = !running;
 }
 
@@ -355,8 +332,7 @@ slider.addEventListener("input", () => {
 
   requestAnimationFrame(() => {
     recalcularAltura();
-    const minutos = parseFloat(document.getElementById("minutos").value);
-    if (minutos) speed = totalHeight / (minutos * 60);
+    speed = totalHeight / (duracion * 60);
     running = wasRunning;
   });
 });
@@ -377,8 +353,8 @@ function loop(timestamp) {
 }
 
 // TAP PAUSA
-presenterView.addEventListener("click", (e) => {
-  if (e.target.tagName === "BUTTON" || e.target.tagName === "INPUT") return;
+presenterView.addEventListener("click", e => {
+  if (e.target.tagName === "BUTTON") return;
   running = !running;
 });
 
@@ -386,13 +362,13 @@ presenterView.addEventListener("click", (e) => {
 let startY = 0;
 let startPos = 0;
 
-presenterView.addEventListener("touchstart", (e) => {
+presenterView.addEventListener("touchstart", e => {
   running = false;
   startY = e.touches[0].clientY;
   startPos = position;
 });
 
-presenterView.addEventListener("touchmove", (e) => {
+presenterView.addEventListener("touchmove", e => {
   const currentY = e.touches[0].clientY;
   const delta = startY - currentY;
 
